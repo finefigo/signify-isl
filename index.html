@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signify - ISL to Text/Speech Translator</title>
+    <!-- TensorFlow.js (load this first) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <!-- MediaPipe dependencies (load in this order) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- Linking CSS file -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo-container">
+                <img src="signify.png" alt="Signify Logo" class="logo">
+            </div>
+            <div class="site-name">
+                <h1>Signify</h1>
+                <p>ISL Translator</p>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="home" class="hero">
+        <div class="slideshow-container">
+            <div class="mySlides fade">
+                <img src="slide1.jpg" alt="Slide 1">
+            </div>
+            <div class="mySlides fade">
+                <img src="slide2.jpg" alt="Slide 2">
+            </div>
+            <div class="mySlides fade">
+                <img src="slide3.jpg" alt="Slide 3">
+            </div>
+        </div>
+        
+        <div class="hero-content">
+            <h1>Indian Sign Language to Text/Speech Translator</h1>
+            <p>Enabling communication and inclusion for the deaf and hard-of-hearing community.</p>
+            <button onclick="location.href='#demo'">Try the Demo</button>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <h2>Key Features</h2>
+        <div class="feature-list">
+            <div class="feature-item">
+                <h3>Real-Time Translation</h3>
+                <p>Experience seamless communication with instant ISL to text/speech conversion using advanced AI.</p>
+            </div>
+            <div class="feature-item">
+                <h3>Multi-Language Support</h3>
+                <p>Translate ISL gestures into multiple Indian languages with high accuracy and reliability.</p>
+            </div>
+            <div class="feature-item">
+                <h3>Educational Integration</h3>
+                <p>Perfect for educational institutions to support students with hearing impairments in their learning journey.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="demo">
+        <h2>Live Demo</h2>
+        <div id="demo-container">
+            <div class="webcam-container">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="output-canvas"></canvas>
+                <div class="camera-overlay">
+                    <div class="camera-guide"></div>
+                </div>
+            </div>
+            <div id="output">
+                <h3>Detected Gesture</h3>
+                <div id="gesture-text">Initializing...</div>
+                <div class="controls">
+                    <button onclick="speakText()" class="speak-btn">
+                        <span class="icon">🔊</span> Speak
+                    </button>
+                </div>
+                <div class="instructions">
+                    <h4>How to Use:</h4>
+                    <ol>
+                        <li>Allow camera access when prompted</li>
+                        <li>Position your hand in the camera view</li>
+                        <li>Make ISL gestures clearly</li>
+                        <li>View the detected text below</li>
+                        <li>Click "Speak" to hear the translation</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="about">
+        <h2>About Signify</h2>
+        <p>
+            Signify is an innovative solution designed to bridge the communication gap between the hearing and the deaf or hard-of-hearing community. By translating Indian Sign Language (ISL) into text and speech in real-time, Signify empowers users to communicate effortlessly across language barriers.
+        </p>
+        <h3>Key USPs:</h3>
+        <ul>
+            <li><strong>Real-Time Translation:</strong> Fast and accurate conversion of ISL gestures to text and speech.</li>
+            <li><strong>Multilingual Support:</strong> Supports output in multiple Indian languages.</li>
+            <li><strong>Scalable & Flexible:</strong> Designed for use in various scenarios, including online education, social interaction, and professional environments.</li>
+            <li><strong>Educational Integration:</strong> Seamless integration with online learning platforms to enhance accessibility for disabled students.</li>
+        </ul>
+        <h3>Viability:</h3>
+        <p>
+            Signify is a versatile and scalable platform that can be deployed across various sectors, from education to law enforcement. Its robust technology ensures high accuracy and adaptability, making it an essential tool for improving accessibility and inclusivity in communication.
+        </p>
+        <h3>Our Team</h3>
+        <p><strong>Team Name:</strong> Team DevOne</p>
+        <ul class="team-list">
+            <li><strong>Leader:</strong> Debayan Maitra</li>
+            <li><strong>Co-Leaders:</strong> Debaditya Roy, Nilormi Paul, Faisal Imtiaz, Debjit Debnath, Debarghya Basu</li>
+        </ul>
+    </section>
+
+    <footer id="contact" class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 Team DevOne. All rights reserved.</p>
+            <p>Contact: debayanmaitra.cse@gmail.com</p>
+        </div>
+    </footer>
+
+    <!-- Linking JavaScript file (load last) -->
+    <script src="script.js"></script>
+</body>
+</html>

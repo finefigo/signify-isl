@@ -1,0 +1,305 @@
+// DOM Elements
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('output-canvas');
+const ctx = canvas.getContext('2d');
+const gestureText = document.getElementById('gesture-text');
+
+let model = null;
+let gestureMapping = null;
+let hands = null;
+let camera = null;
+let lastPredictedGesture = '';
+let predictionConfidence = 0;
+
+// Slideshow functionality
+let slideIndex = 0;
+function showSlides() {
+    let slides = document.getElementsByClassName("mySlides");
+    if (slides.length === 0) return;  // Exit if no slides
+
+    for (let i = 0; i < slides.length; i++) {
+        slides[i].style.display = "none";
+    }
+    slideIndex++;
+    if (slideIndex > slides.length) {
+        slideIndex = 1;
+    }
+    slides[slideIndex - 1].style.display = "block";
+    slides[slideIndex - 1].style.opacity = 0;
+    fadeIn(slides[slideIndex - 1]);
+    setTimeout(showSlides, 3000);
+}
+
+function fadeIn(element) {
+    let op = 0.1;
+    let timer = setInterval(function () {
+        if (op >= 1) {
+            clearInterval(timer);
+        }
+        element.style.opacity = op;
+        element.style.filter = 'alpha(opacity=' + op * 100 + ")";
+        op += op * 0.1;
+    }, 20);
+}
+
+// Function to handle speaking the detected text
+function speakText() {
+    const speech = new SpeechSynthesisUtterance(document.getElementById('gesture-text').innerText);
+    speech.lang = 'en-IN';
+    window.speechSynthesis.speak(speech);
+}
+
+// Function to start the demo (e.g., turn on the webcam)
+function startDemo() {
+    const webcamElement = document.getElementById('webcam');
+    
+    // Check if the browser supports getUserMedia API
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                webcamElement.srcObject = stream;
+            })
+            .catch(error => {
+                console.error('Error accessing webcam:', error);
+                alert('Unable to access webcam. Please ensure you have granted camera permissions.');
+            });
+    } else {
+        alert('Webcam not supported by your browser.');
+    }
+}
+
+// Placeholder function to simulate gesture recognition
+function recognizeGesture() {
+    const gestures = ['Hello', 'Thank You', 'Please', 'Yes', 'No'];
+    const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
+    return randomGesture;
+}
+
+// Function to display the recognized gesture
+function displayGesture() {
+    const gestureTextElement = document.getElementById('gesture-text');
+    const detectedGesture = recognizeGesture();
+    gestureTextElement.textContent = detectedGesture;
+}
+
+// Function to speak the recognized gesture text
+function speakText() {
+    const gestureText = document.getElementById('gesture-text').textContent;
+
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(gestureText);
+        utterance.lang = 'en-IN'; // Set language to Indian English
+        window.speechSynthesis.speak(utterance);
+    } else {
+        alert('Speech synthesis not supported in this browser.');
+    }
+}
+
+async function recognizeGesture() {
+    const response = await fetch('/recognize-sign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData: 'image_data_here' }), // Replace with actual image data
+    });
+
+    const data = await response.json();
+    document.getElementById('gesture-text').innerText = data.gestureText;
+}
+
+// Initialize MediaPipe Hands
+async function initializeHandDetection() {
+    console.log("Initializing hand detection...");
+    hands = new Hands({
+        locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }
+    });
+
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(onHandResults);
+
+    // Setup camera
+    camera = new Camera(video, {
+        onFrame: async () => {
+            await hands.send({image: video});
+        },
+        width: 640,
+        height: 480
+    });
+
+    console.log("Starting camera...");
+    await camera.start();
+    console.log("Camera started");
+}
+
+// Process hand landmarks for prediction
+function preprocessLandmarks(landmarks) {
+    const input = new Float32Array(63);
+    landmarks.forEach((landmark, index) => {
+        input[index * 3] = landmark.x;
+        input[index * 3 + 1] = landmark.y;
+        input[index * 3 + 2] = landmark.z;
+    });
+    return tf.tensor(input).expandDims(0);
+}
+
+// Handle MediaPipe hand detection results
+async function onHandResults(results) {
+    if (!canvas || !ctx) return;  // Exit if canvas not ready
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the video frame
+    ctx.save();
+    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        // Draw hand landmarks
+        for (const landmarks of results.multiHandLandmarks) {
+            drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {
+                color: '#00FF00',
+                lineWidth: 2
+            });
+            drawLandmarks(ctx, landmarks, {
+                color: '#FF0000',
+                lineWidth: 1
+            });
+            
+            // Process hand landmarks for gesture recognition
+            if (model && gestureMapping) {
+                try {
+                    // Preprocess landmarks
+                    const inputTensor = preprocessLandmarks(landmarks);
+                    
+                    // Get prediction
+                    const prediction = await model.predict(inputTensor);
+                    const probabilities = await prediction.data();
+                    const gestureIndex = probabilities.indexOf(Math.max(...probabilities));
+                    const confidence = probabilities[gestureIndex];
+                    
+                    // Update display if confidence is high enough
+                    if (confidence > 0.7) {
+                        const predictedGesture = gestureMapping[gestureIndex];
+                        if (predictedGesture !== lastPredictedGesture || confidence > predictionConfidence) {
+                            lastPredictedGesture = predictedGesture;
+                            predictionConfidence = confidence;
+                            gestureText.textContent = `${predictedGesture} (${(confidence * 100).toFixed(1)}%)`;
+                            console.log(`Detected gesture: ${predictedGesture} with confidence ${(confidence * 100).toFixed(1)}%`);
+                        }
+                    }
+                    
+                    // Cleanup
+                    inputTensor.dispose();
+                    prediction.dispose();
+                } catch (error) {
+                    console.error('Error during gesture recognition:', error);
+                }
+            }
+        }
+    } else {
+        // No hand detected
+        if (lastPredictedGesture !== '') {
+            lastPredictedGesture = '';
+            predictionConfidence = 0;
+            gestureText.textContent = 'No hand detected';
+        }
+    }
+    
+    ctx.restore();
+}
+
+// Load the TensorFlow.js model and gesture mapping
+async function loadModel() {
+    try {
+        console.log("Loading model...");
+        gestureText.textContent = 'Loading model...';
+        
+        // Load gesture mapping
+        const mappingResponse = await fetch('model/gesture_mapping.json');
+        gestureMapping = await mappingResponse.json();
+        console.log("Gesture mapping loaded:", gestureMapping);
+        
+        // Load model
+        model = await tf.loadLayersModel('model/model.json');
+        console.log("Model loaded");
+        
+        gestureText.textContent = 'Model loaded! Show your hand...';
+    } catch (error) {
+        console.error('Error loading model:', error);
+        gestureText.textContent = 'Error loading model. Please refresh and try again.';
+    }
+}
+
+// Text-to-Speech function
+function speakText() {
+    const text = gestureText.textContent.split('(')[0].trim();
+    if (text && text !== 'No hand detected' && text !== 'Loading model...' && window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-IN';  // Set to Indian English
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Handle visibility change
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        if (camera) {
+            camera.stop();
+        }
+    } else {
+        if (camera) {
+            camera.start();
+        }
+    }
+});
+
+// Initialize everything when page loads
+async function init() {
+    try {
+        console.log("Initializing...");
+        
+        // Start slideshow if slides exist
+        showSlides();
+        
+        // Set canvas size
+        function resizeCanvas() {
+            if (video && canvas) {
+                canvas.width = video.clientWidth;
+                canvas.height = video.clientHeight;
+            }
+        }
+        
+        // Resize canvas when video loads
+        video.addEventListener('loadedmetadata', resizeCanvas);
+        // Resize canvas when window resizes
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Load model and initialize hand detection
+        await loadModel();
+        await initializeHandDetection();
+        
+        console.log("Initialization complete");
+    } catch (error) {
+        console.error('Initialization error:', error);
+        if (gestureText) {
+            gestureText.textContent = 'Error initializing. Please refresh and try again.';
+        }
+    }
+}
+
+// Start everything when page loads
+window.onload = init;
+
+// Start the demo and display the recognized gesture every 3 seconds
+startDemo();
+setInterval(displayGesture, 3000);
+
