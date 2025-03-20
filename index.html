@@ -4,21 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signify - ISL to Text/Speech Translator</title>
-    <!-- TensorFlow.js (load this first) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
-    <!-- MediaPipe dependencies (load in this order) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Linking CSS file -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <header>
         <div class="header-container">
             <div class="logo-container">
-                <img src="signify.png" alt="Signify Logo" class="logo">
+                <img src="./assets/signify.svg" alt="Signify Logo" class="logo">
             </div>
             <div class="site-name">
                 <h1>Signify</h1>
@@ -26,38 +21,81 @@
             </div>
         </div>
         <nav>
-            <ul>
-                <li><a href="#home">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#demo">Demo</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
+            <div class="nav-links">
+                <a href="#home">Home</a>
+                <a href="#main-features">Main Features</a>
+                <a href="#features">Benefits</a>
+                <a href="#demo">Demo</a>
+                <a href="#about">About</a>
+                <a href="./learn.html">Learn ISL</a>
+                <a href="./call.html">Video Call</a>
+            </div>
         </nav>
     </header>
 
     <section id="home" class="hero">
         <div class="slideshow-container">
             <div class="mySlides fade">
-                <img src="slide1.jpg" alt="Slide 1">
+                <img src="./assets/slide1.jpg" alt="Slide 1">
             </div>
             <div class="mySlides fade">
-                <img src="slide2.jpg" alt="Slide 2">
+                <img src="./assets/slide2.jpg" alt="Slide 2">
             </div>
             <div class="mySlides fade">
-                <img src="slide3.jpg" alt="Slide 3">
+                <img src="./assets/slide3.jpg" alt="Slide 3">
             </div>
         </div>
         
         <div class="hero-content">
             <h1>Indian Sign Language to Text/Speech Translator</h1>
             <p>Enabling communication and inclusion for the deaf and hard-of-hearing community.</p>
-            <button onclick="location.href='#demo'">Try the Demo</button>
+            <div class="hero-buttons">
+                <button onclick="location.href='#demo'" class="primary-btn">Try the Demo</button>
+                <button onclick="location.href='./learn.html'" class="secondary-btn learn-btn"><i class="fas fa-graduation-cap"></i> Learn ISL</button>
+                <button onclick="location.href='./call.html'" class="secondary-btn call-btn"><i class="fas fa-video"></i> Video Call</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="main-features" class="main-features">
+        <h2>Main Features</h2>
+        <div class="main-features-container">
+            <div class="main-feature-card video-call">
+                <div class="feature-icon">
+                    <i class="fas fa-video"></i>
+                </div>
+                <div class="feature-content">
+                    <h3>Video Calling with ISL Support</h3>
+                    <p>Connect with others through video calls with real-time Indian Sign Language translation. Breaking communication barriers has never been easier!</p>
+                    <ul class="feature-benefits">
+                        <li><i class="fas fa-check"></i> Real-time ISL translation during calls</li>
+                        <li><i class="fas fa-check"></i> Text transcription of signed conversations</li>
+                        <li><i class="fas fa-check"></i> Share calls with multiple participants</li>
+                    </ul>
+                    <a href="./call.html" class="feature-btn">Start Video Call <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="main-feature-card isl-learning">
+                <div class="feature-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="feature-content">
+                    <h3>Learn Indian Sign Language</h3>
+                    <p>Master Indian Sign Language through our interactive learning platform. Perfect for beginners and those looking to improve their signing skills.</p>
+                    <ul class="feature-benefits">
+                        <li><i class="fas fa-check"></i> Interactive tutorials with video demonstrations</li>
+                        <li><i class="fas fa-check"></i> Practice exercises with feedback</li>
+                        <li><i class="fas fa-check"></i> Track your learning progress</li>
+                    </ul>
+                    <a href="./learn.html" class="feature-btn">Start Learning <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
         </div>
     </section>
 
     <section id="features" class="features">
-        <h2>Key Features</h2>
+        <h2>Key Benefits</h2>
         <div class="feature-list">
             <div class="feature-item">
                 <h3>Real-Time Translation</h3>
@@ -78,10 +116,15 @@
         <h2>Live Demo</h2>
         <div id="demo-container">
             <div class="webcam-container">
-                <video id="webcam" autoplay playsinline></video>
+                <video id="webcam" autoplay playsinline muted></video>
                 <canvas id="output-canvas"></canvas>
                 <div class="camera-overlay">
                     <div class="camera-guide"></div>
+                </div>
+                <div id="camera-error" class="camera-error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Camera not available. Please check permissions and refresh.</span>
+                    <button onclick="window.location.reload()">Retry</button>
                 </div>
             </div>
             <div id="output">
@@ -126,7 +169,7 @@
         <p><strong>Team Name:</strong> Team DevOne</p>
         <ul class="team-list">
             <li><strong>Leader:</strong> Debayan Maitra</li>
-            <li><strong>Co-Leaders:</strong> Debaditya Roy, Nilormi Paul, Faisal Imtiaz, Debjit Debnath, Debarghya Basu</li>
+            <li><strong>Co-Leaders:</strong> Debaditya Roy, Nilormi Paul, Faisal Imtiaz</li>
         </ul>
     </section>
 
@@ -137,7 +180,13 @@
         </div>
     </footer>
 
-    <!-- Linking JavaScript file (load last) -->
-    <script src="script.js"></script>
+    <!-- Load dependencies in correct order -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- Load our script last -->
+    <script src="./script.js"></script>
 </body>
 </html>

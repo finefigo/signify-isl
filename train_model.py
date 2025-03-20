@@ -1,187 +1,183 @@
-import tensorflow as tf
-import numpy as np
 import os
+import numpy as np
+import json
 import cv2
-import mediapipe as mp
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+import argparse
+import tensorflowjs as tfjs
 
-# Initialize MediaPipe Hands
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(
-    static_image_mode=True,
-    max_num_hands=1,
-    min_detection_confidence=0.5
-)
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Train an ISL gesture recognition model")
+parser.add_argument("--data-dir", type=str, default="training_data", help="Directory containing the training data")
+parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs")
+parser.add_argument("--batch-size", type=int, default=32, help="Batch size for training")
+parser.add_argument("--output-dir", type=str, default="model", help="Directory to save the trained model")
+args = parser.parse_args()
 
-def extract_hand_landmarks(image_path):
-    """Extract hand landmarks from an image using MediaPipe."""
-    # Read image
-    image = cv2.imread(image_path)
-    if image is None:
-        return None
-    
-    # Convert BGR to RGB
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-    # Process the image
-    results = hands.process(image)
-    
-    if not results.multi_hand_landmarks:
-        return None
-    
-    # Get landmarks of the first hand
-    hand_landmarks = results.multi_hand_landmarks[0]
-    
-    # Convert landmarks to flat array
-    landmarks_array = []
-    for landmark in hand_landmarks.landmark:
-        landmarks_array.extend([landmark.x, landmark.y, landmark.z])
-    
-    return np.array(landmarks_array)
+# Create output directory if it doesn't exist
+os.makedirs(args.output_dir, exist_ok=True)
 
-def load_dataset(data_dir='training_data'):
-    """Load and preprocess the dataset."""
-    X = []  # Hand landmarks
-    y = []  # Labels
-    gesture_mapping = {}  # Map gesture names to indices
+# Function to load and preprocess images
+def load_and_preprocess_images(data_dir):
+    images = []
+    labels = []
+    gesture_mapping = {}
     
-    print("Loading dataset...")
-    gestures = sorted(os.listdir(data_dir))  # Sort to ensure consistent order
+    # List all gesture directories
+    gesture_dirs = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))]
     
-    for idx, gesture in enumerate(gestures):
-        gesture_mapping[idx] = gesture
+    print(f"Found {len(gesture_dirs)} gesture classes: {gesture_dirs}")
+    
+    # Create a mapping from gesture names to numeric labels
+    for i, gesture in enumerate(sorted(gesture_dirs)):
+        gesture_mapping[i] = gesture
+    
+    # Save the gesture mapping
+    with open(os.path.join(args.output_dir, "gesture_mapping.json"), "w") as f:
+        json.dump(gesture_mapping, f)
+    
+    # Load images from each gesture directory
+    for label, gesture in gesture_mapping.items():
         gesture_dir = os.path.join(data_dir, gesture)
-        print(f"Processing {gesture}...")
         
-        for image_file in os.listdir(gesture_dir):
-            if not image_file.lower().endswith(('.png', '.jpg', '.jpeg')):
+        # Get all jpg files in the directory
+        image_files = [f for f in os.listdir(gesture_dir) if f.endswith('.jpg')]
+        print(f"Loading {len(image_files)} images for gesture '{gesture}'")
+        
+        for img_file in image_files:
+            img_path = os.path.join(gesture_dir, img_file)
+            img = cv2.imread(img_path)
+            
+            if img is None:
+                print(f"Warning: Could not read image {img_path}")
                 continue
             
-            image_path = os.path.join(gesture_dir, image_file)
-            landmarks = extract_hand_landmarks(image_path)
+            # Resize and preprocess image
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = cv2.resize(img, (224, 224))
+            img = img / 255.0  # Normalize to [0, 1]
             
-            if landmarks is not None:
-                X.append(landmarks)
-                y.append(idx)
+            images.append(img)
+            labels.append(label)
     
-    return np.array(X), np.array(y), gesture_mapping
+    return np.array(images), np.array(labels), gesture_mapping
 
-def create_model(num_classes, input_shape):
-    """Create the model architecture."""
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.3),
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(0.3),
-        tf.keras.layers.Dense(num_classes, activation='softmax')
+# Load and preprocess the data
+print("Loading and preprocessing images...")
+images, labels, gesture_mapping = load_and_preprocess_images(args.data_dir)
+
+# Convert labels to one-hot encoding
+num_classes = len(gesture_mapping)
+labels_one_hot = tf.keras.utils.to_categorical(labels, num_classes)
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(
+    images, labels_one_hot, test_size=0.2, random_state=42, stratify=labels
+)
+
+print(f"Training set: {X_train.shape[0]} samples")
+print(f"Validation set: {X_val.shape[0]} samples")
+
+# Create data generators with augmentation for training
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+datagen.fit(X_train)
+
+# Build the model
+def build_model(input_shape, num_classes):
+    model = Sequential([
+        # Convolutional layers
+        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        MaxPooling2D((2, 2)),
+        
+        Conv2D(64, (3, 3), activation='relu'),
+        MaxPooling2D((2, 2)),
+        
+        Conv2D(128, (3, 3), activation='relu'),
+        MaxPooling2D((2, 2)),
+        
+        # Flatten and dense layers
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dropout(0.5),
+        Dense(num_classes, activation='softmax')
     ])
-    return model
-
-def plot_training_history(history):
-    """Plot training history."""
-    plt.figure(figsize=(12, 4))
     
-    # Plot accuracy
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['accuracy'], label='Training Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Model Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    
-    # Plot loss
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['loss'], label='Training Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Model Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    
-    plt.tight_layout()
-    plt.savefig('training_history.png')
-    plt.close()
-
-def main():
-    # Load and preprocess data
-    X, y, gesture_mapping = load_dataset()
-    
-    if len(X) == 0:
-        print("No valid training data found!")
-        return
-    
-    print(f"\nDataset summary:")
-    print(f"Total samples: {len(X)}")
-    for idx, gesture in gesture_mapping.items():
-        count = np.sum(y == idx)
-        print(f"{gesture}: {count} samples")
-    
-    # Split the data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Convert labels to one-hot encoding
-    num_classes = len(gesture_mapping)
-    y_train = tf.keras.utils.to_categorical(y_train, num_classes)
-    y_test = tf.keras.utils.to_categorical(y_test, num_classes)
-    
-    # Create and compile model
-    model = create_model(num_classes, input_shape=(63,))  # 21 landmarks × 3 coordinates
+    # Compile the model
     model.compile(
-        optimizer='adam',
+        optimizer=Adam(learning_rate=0.001),
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
     
-    # Print model summary
-    model.summary()
-    
-    # Train the model
-    print("\nTraining the model...")
-    history = model.fit(
-        X_train, y_train,
-        epochs=50,
-        batch_size=32,
-        validation_data=(X_test, y_test),
-        callbacks=[
-            tf.keras.callbacks.EarlyStopping(
-                monitor='val_loss',
-                patience=5,
-                restore_best_weights=True
-            )
-        ]
-    )
-    
-    # Evaluate the model
-    print("\nEvaluating the model...")
-    test_loss, test_accuracy = model.evaluate(X_test, y_test)
-    print(f"Test accuracy: {test_accuracy*100:.2f}%")
-    
-    # Plot training history
-    plot_training_history(history)
-    
-    # Save the model in TensorFlow.js format
-    print("\nSaving the model...")
-    model_save_path = 'model'
-    if not os.path.exists(model_save_path):
-        os.makedirs(model_save_path)
-    
-    # Save gesture mapping
-    import json
-    with open(os.path.join(model_save_path, 'gesture_mapping.json'), 'w') as f:
-        json.dump(gesture_mapping, f)
-    
-    # Convert and save model
-    import tensorflowjs as tfjs
-    tfjs.converters.save_keras_model(model, model_save_path)
-    print(f"Model and gesture mapping saved in '{model_save_path}' directory")
+    return model
 
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nTraining interrupted by user")
-    except Exception as e:
-        print(f"\nAn error occurred: {str(e)}") 
+# Build and compile the model
+model = build_model((224, 224, 3), num_classes)
+model.summary()
+
+# Train the model
+print(f"Training model for {args.epochs} epochs...")
+history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=args.batch_size),
+    epochs=args.epochs,
+    validation_data=(X_val, y_val),
+    steps_per_epoch=len(X_train) // args.batch_size,
+    verbose=1
+)
+
+# Evaluate the model
+val_loss, val_acc = model.evaluate(X_val, y_val)
+print(f"Validation accuracy: {val_acc*100:.2f}%")
+
+# Plot training history
+plt.figure(figsize=(12, 4))
+
+# Plot training & validation accuracy
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(['Train', 'Validation'], loc='lower right')
+
+# Plot training & validation loss
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend(['Train', 'Validation'], loc='upper right')
+
+plt.tight_layout()
+plt.savefig(os.path.join(args.output_dir, 'training_history.png'))
+plt.show()
+
+# Save the Keras model
+keras_model_path = os.path.join(args.output_dir, 'model.h5')
+model.save(keras_model_path)
+print(f"Keras model saved to {keras_model_path}")
+
+# Convert and save the model in TensorFlow.js format
+tfjs_model_path = os.path.join(args.output_dir)
+tfjs.converters.save_keras_model(model, tfjs_model_path)
+print(f"TensorFlow.js model saved to {tfjs_model_path}")
+
+print("Training complete!")
