@@ -40,8 +40,7 @@ Ideal for schools, colleges, and online educators focused on **inclusive educati
 ## 🛠️ Tech Stack
 
 - **Frontend**: HTML, CSS, JavaScript
-- **Backend & AI/ML**: Python, Flask, TensorFlow, OpenCV
-- **Video Call**: WebRTC
+- **Backend & AI/ML**: Python, Flask, PyTorch , OpenCV
 - **Hosting**: Vercel
 
 ---
