@@ -23,6 +23,22 @@
 - **🔐 User Authentication**  
   Students and teachers can register and log in to personalize their learning or teaching experience.
 
+  ### 🔄 Fallback Mechanism – Robustness Beyond AI
+
+To ensure consistent and reliable performance, even in challenging real-world conditions (e.g., poor lighting, hand occlusion, or noisy backgrounds), **Signify ISL** integrates a fallback mechanism using **hand landmark tracking**.
+
+If the primary **CNN model** is unable to classify a gesture confidently, the system automatically switches to an alternative logic:
+
+- ✋ **Hand keypoints are captured using [MediaPipe Hands](https://google.github.io/mediapipe/solutions/hands)**
+- 📐 The system analyzes **relative positions** of key landmarks — such as:
+  - Fingertip distances  
+  - Finger angles  
+  - Hand orientation
+- 🤖 Based on these geometric features, the system **infers the most likely ISL sign**
+
+This fallback logic ensures that users continue to receive **accurate text and speech translations**, even under suboptimal conditions — increasing both the **reliability** and **usability** of the application.
+
+
 ---
 
 ## 🏫 Use Case: Online Classrooms for Deaf Students
